@@ -32,7 +32,7 @@ public final class UuRemoteClient {
     }
 
     public boolean hasBoundDevice() {
-        return !preferences.getString(KEY_DEVICE_ID, "").isBlank();
+        return !isBlank(preferences.getString(KEY_DEVICE_ID, ""));
     }
 
     public void clearBoundDevice() {
@@ -73,7 +73,7 @@ public final class UuRemoteClient {
 
     public LaunchResult startControl(boolean pictureInPicture) {
         String deviceId = preferences.getString(KEY_DEVICE_ID, "");
-        if (deviceId.isBlank()) {
+        if (isBlank(deviceId)) {
             return LaunchResult.error("请先绑定电脑。");
         }
         if (!isInstalled()) {
@@ -129,19 +129,19 @@ public final class UuRemoteClient {
     private CallbackResult handleBindCallback(Uri uri) {
         String expected = preferences.getString(KEY_BIND_NONCE, "");
         String actual = uri.getQueryParameter("nonce");
-        if (expected.isBlank() || actual == null || !expected.equals(actual)) {
+        if (isBlank(expected) || actual == null || !expected.equals(actual)) {
             return CallbackResult.handled("收到不匹配当前绑定请求的回调，已忽略。");
         }
 
         String deviceId = uri.getQueryParameter("anonymous_device_id");
         String error = uri.getQueryParameter("error");
         SharedPreferences.Editor editor = preferences.edit().remove(KEY_BIND_NONCE);
-        if (deviceId != null && !deviceId.isBlank() && (error == null || error.isBlank())) {
+        if (!isBlank(deviceId) && isBlank(error)) {
             editor.putString(KEY_DEVICE_ID, deviceId).apply();
             return CallbackResult.handled("电脑绑定成功。");
         }
         editor.apply();
-        if (error == null || error.isBlank()) {
+        if (isBlank(error)) {
             return CallbackResult.handled("UU 返回了无法识别的绑定结果。");
         }
         return CallbackResult.handled("绑定未完成：" + bindingErrorText(error));
@@ -150,7 +150,7 @@ public final class UuRemoteClient {
     private CallbackResult handleControlCallback(Uri uri) {
         String expected = preferences.getString(KEY_CONTROL_REQUEST, "");
         String actual = uri.getQueryParameter("request_id");
-        if (expected.isBlank() || actual == null || !expected.equals(actual)) {
+        if (isBlank(expected) || actual == null || !expected.equals(actual)) {
             return CallbackResult.handled("收到不匹配当前 PiP 请求的回调，已忽略。");
         }
 
@@ -164,7 +164,7 @@ public final class UuRemoteClient {
         }
 
         String reason = uri.getQueryParameter("reason");
-        if (reason == null || reason.isBlank()) {
+        if (isBlank(reason)) {
             reason = "connect_failed";
         }
         if ("device_not_found".equals(reason)) {
@@ -182,6 +182,10 @@ public final class UuRemoteClient {
         } catch (RuntimeException ignored) {
             return false;
         }
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     private static String bindingErrorText(String error) {
