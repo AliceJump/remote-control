@@ -1,10 +1,14 @@
 package io.github.alicejump.remotecontrol;
 
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.net.Uri;
 
+import java.util.List;
 import java.util.UUID;
 
 /** Thin integration with UU Remote's documented Android Deeplink protocol. */
@@ -26,9 +30,7 @@ public final class UuRemoteClient {
     }
 
     public boolean isInstalled() {
-        Intent probe = new Intent(Intent.ACTION_VIEW, Uri.parse("uuremote://external"));
-        probe.setPackage(UU_PACKAGE);
-        return probe.resolveActivity(context.getPackageManager()) != null;
+        return resolveUuActivity(Uri.parse("uuremote://external")) != null;
     }
 
     public boolean hasBoundDevice() {
@@ -173,9 +175,29 @@ public final class UuRemoteClient {
         return CallbackResult.handled("PiP 未启动：" + controlErrorText(reason));
     }
 
+    private ComponentName resolveUuActivity(Uri uri) {
+        Intent probe = new Intent(Intent.ACTION_VIEW, uri);
+        PackageManager packageManager = context.getPackageManager();
+        List<ResolveInfo> candidates = packageManager.queryIntentActivities(
+                probe,
+                PackageManager.MATCH_DEFAULT_ONLY
+        );
+        for (ResolveInfo candidate : candidates) {
+            if (candidate.activityInfo != null && UU_PACKAGE.equals(candidate.activityInfo.packageName)) {
+                return new ComponentName(candidate.activityInfo.packageName, candidate.activityInfo.name);
+            }
+        }
+        return null;
+    }
+
     private boolean launch(Uri uri) {
+        ComponentName component = resolveUuActivity(uri);
+        if (component == null) {
+            return false;
+        }
+
         Intent intent = new Intent(Intent.ACTION_VIEW, uri);
-        intent.setPackage(UU_PACKAGE);
+        intent.setComponent(component);
         try {
             context.startActivity(intent);
             return true;
